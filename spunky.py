@@ -27,6 +27,7 @@ __version__ = '1.13.0'
 
 
 ### IMPORTS
+import copy
 import os
 import time
 import sqlite3
@@ -1469,7 +1470,7 @@ class LogParser(object):
             elif sar['command'] == '!teams' and self.game.players[sar['player_num']].get_admin_role() >= COMMANDS['teams']['level']:
                 if not self.ffa_lms_gametype:
                     self.handle_team_balance()
-            elif sar['command'] == '!sk' and self.game.players[sar['player_num']].get_admin_role() >= COMMANDS['teams']['level']:
+            elif sar['command'] == '!sk' and self.game.players[sar['player_num']].get_admin_role() >= COMMANDS['sk']['level']:
                 if not self.ffa_lms_gametype:
                     self.handle_team_skill_balance()
 
@@ -3054,17 +3055,88 @@ class LogParser(object):
             self.handle_team_balance()
             if self.allow_cmd_teams_round_end:
                 self.allow_cmd_teams = False
+    def swith_item(self,teams, i):
+        """
+        switch items i between teams
+        """
+        key0, value0 = teams[0][i],teams[0][i+1]
+        key1, value1 = teams[1][i],teams[1][i+1]
+        teams[0][i]=key1
+        teams[0][i+1]=value1
+        teams[1][i]=key0
+        teams[1][i+1]=value0
+        return teams
+    def get_absolute_difference(self,teams):
+        """
+        calculate absolute difference between teams
+        """
+        team_blue = teams[0]
+        team_red = teams[1]
+        blue_score = sum(num for idx, num in enumerate(team_blue) if idx % 2 != 0)
+        red_score = sum(num for idx, num in enumerate(team_red) if idx % 2 != 0)
+        return (blue_score,red_score,abs(blue_score - red_score))
+    
+    def team_optimize(self,teams):
+        """
+        optimize teams by switching  items
+        """
+        blue_score,red_score,absolute_score_difference = self.get_absolute_difference(teams)
+        can_optimize = True
+        min_count = min(len(teams[0]), len(teams[1]))
+        i = 0
+        while can_optimize:
+            # switch last items
+            optimized_teams = self.swith_item(copy.deepcopy(teams), i)
+            blue_score,red_score,new_diff =  self.get_absolute_difference(optimized_teams)
+            if new_diff < absolute_score_difference:
+                
+                teams = optimized_teams
+                absolute_score_difference = new_diff
+            i = i + 2
+            if i >= min_count - 1:
+                can_optimize = False
 
+        return teams
     def handle_team_skill_balance(self):
         """
         skill balance teams if needed
         """
-        with self.players_lock:
-            spec = 3
-            game_data = self.game.get_gamestats()
-            frags_list={player.num : player.frags for player in self.game.quake.players}
-            player_list = { player.player_num: frags_list[player.player_num] for player in self.game.players.itervalues() if player.get_team() is not spec }
-            self.game.rcon_say("Skill balance ^7Red: ^1%s ^7- Blue: ^4%s ^7- Spectator: ^3%s" % (game_data[Player.teams[1]], game_data[Player.teams[2]], game_data[Player.teams[3]]))
+        #circuit breaker
+        if len(self.game.quake.players)<3:
+            self.game.rcon_say("Cannot Skill balance with less than 3 players try !swap")
+
+        spec = 3
+        game_data = self.game.get_gamestats()
+        frags_list={player.num : player.frags for player in self.game.quake.players}
+        player_list = { player.player_num: frags_list[player.player_num] for player in self.game.players.itervalues() if player.get_team() is not spec }
+        player_list={1: 55, 2: 163, 3: 16, 4: 25, 5: 118, 6: 69, 7: 46, 8: 96, 9: 108, 10: 51, 11: 70}
+        self.game.rcon_bigtext("SKILL BALANCING TEAMS...")
+        #sort 
+        player_list=sorted(player_list.items(), key=lambda item: item[1], reverse=True)
+        #split
+        teams = [[], []]
+        for i in range(1, len(player_list) + 1):
+            team_index = i % 2
+            key, value = player_list[i - 1 ]
+            teams[team_index]+=(key, value)
+        
+        blue_score,red_score,absolute_score_difference = self.get_absolute_difference(teams) 
+        self.game.rcon_say("Skill balance ^7Red: ^1%d ^7- Blue: ^4%d DIFF: ^7%d " % (red_score, blue_score, absolute_score_difference))
+        #optimize
+        teams=self.team_optimize(teams)
+        blue_score,red_score,absolute_score_difference = self.get_absolute_difference(teams) 
+        team_red ={ teams[0][i]:  teams[0][i + 1] for i in range(0, len( teams[0]), 2)}
+        team_blue = { teams[1][i]:  teams[1][i + 1] for i in range(0, len( teams[1]), 2)}
+        #move users to their teams
+        for i in range(1, max(len(team_blue),len(team_red))+1):
+            if team_red:
+                player=team_red.popitem()
+                self.game.rcon_forceteam(player[0], 1)
+            if team_blue:
+                player=team_blue.popitem()
+                self.game.rcon_forceteam(player[0], 2)
+        self.game.rcon_say("Skill balance ^7Red: ^1%d ^7- Blue: ^4%d DIFF: ^7%d " % (red_score, blue_score, absolute_score_difference))
+        
     def handle_team_balance(self):
         """
         balance teams if needed
