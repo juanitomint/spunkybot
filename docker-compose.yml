@@ -1,0 +1,15 @@
+version: "3.7"
+services:
+  urt:
+    image: ich777/urbanterror
+
+    environment:
+      START_PARAMS: ""
+      CHECK_FOR_UPDATES: ""
+      POSTGRES_DB: postgres
+      UID: 1000
+      GID: 1000
+    ports:
+      - "27960:27960/udp"
+    volumes:
+      - ./urban-terror:/urbanterror

@@ -112,6 +112,7 @@ COMMANDS = {'help': {'desc': 'display all available commands', 'syntax': '^7Usag
             'tell': {'desc': 'tell a message to a specific player', 'syntax': '^7Usage: ^2!tell ^7<name> <text>', 'level': 40},
             'tempban': {'desc': 'ban a player temporary for the given period of 1 sec to 3 days', 'syntax': '^7Usage: ^2!tempban ^7<name> <duration> [<reason>]', 'level': 40, 'short': 'tb'},
             'warnclear': {'desc': 'clear the player warnings', 'syntax': '^7Usage: ^2!warnclear ^7<name>', 'level': 40, 'short': 'wc'},
+            'sk': {'desc': 'skill balance teams', 'syntax': '^7Usage: ^2!sk', 'level': 40},
             # fulladmin commands, level 60
             'ban': {'desc': 'ban a player for several days', 'syntax': '^7Usage: ^2!ban ^7<name> <reason>', 'level': 60, 'short': 'b'},
             'baninfo': {'desc': 'display active bans of a player', 'syntax': '^7Usage: ^2!baninfo ^7<name>', 'level': 60, 'short': 'bi'},
@@ -1468,6 +1469,9 @@ class LogParser(object):
             elif sar['command'] == '!teams' and self.game.players[sar['player_num']].get_admin_role() >= COMMANDS['teams']['level']:
                 if not self.ffa_lms_gametype:
                     self.handle_team_balance()
+            elif sar['command'] == '!sk' and self.game.players[sar['player_num']].get_admin_role() >= COMMANDS['teams']['level']:
+                if not self.ffa_lms_gametype:
+                    self.handle_team_skill_balance()
 
             # stats - display current map stats
             elif sar['command'] == '!stats':
@@ -3051,6 +3055,16 @@ class LogParser(object):
             if self.allow_cmd_teams_round_end:
                 self.allow_cmd_teams = False
 
+    def handle_team_skill_balance(self):
+        """
+        skill balance teams if needed
+        """
+        with self.players_lock:
+            spec = 3
+            game_data = self.game.get_gamestats()
+            frags_list={player.num : player.frags for player in self.game.quake.players}
+            player_list = { player.player_num: frags_list[player.player_num] for player in self.game.players.itervalues() if player.get_team() is not spec }
+            self.game.rcon_say("Skill balance ^7Red: ^1%s ^7- Blue: ^4%s ^7- Spectator: ^3%s" % (game_data[Player.teams[1]], game_data[Player.teams[2]], game_data[Player.teams[3]]))
     def handle_team_balance(self):
         """
         balance teams if needed
