@@ -1,8 +1,7 @@
 # $ docker build -t spunkybot .
-# $ docker run -it --rm --name spunkybot spunkybot
-
-FROM python:2
+# $ 
+FROM python:2-slim
 MAINTAINER "Alexander Kress <feedback@spunkybot.de>"
 WORKDIR /usr/src/app
-VOLUME [ ".", "/usr/src/app" ]
+COPY  "." "/usr/src/app"
 CMD [ "python", "./spunky.py" ]

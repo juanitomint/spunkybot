@@ -13,3 +13,11 @@ services:
       - "27960:27960/udp"
     volumes:
       - ./urban-terror:/urbanterror
+  spunky:
+    image: juanitomint/spunkybot:1.14.2
+    volumes:
+      - ./urban-terror/q3ut4:/opt/urbanterror/.q3a/q3ut4
+      - ./conf/settings-docker.conf:/usr/src/app/conf/settings.conf
+      - ./data.sqlite:/usr/src/app/data.sqlite
+    depends_on:
+      - urt
