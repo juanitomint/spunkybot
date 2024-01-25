@@ -23,7 +23,7 @@ Modify the files '/conf/settings.conf' and '/conf/rules.conf'
 Run the bot: python spunky.py
 """
 
-__version__ = '1.14.2'
+__version__ = '1.14.3'
 
 
 ### IMPORTS
@@ -51,6 +51,7 @@ logger.propagate = False
 
 # Bot player number
 BOT_PLAYER_NUM = 1022
+FAKE_PLAYER_NUM = 1023
 
 # RCON Delay in seconds, recommended range: 0.18 - 0.33
 RCON_DELAY = 0.3
@@ -3107,13 +3108,16 @@ class LogParser(object):
             spec = 3
             game_data = self.game.get_gamestats()
             frags_list={player.num : player.frags for player in self.game.quake.players}
-            player_list = { player.player_num: frags_list[player.player_num] for player in self.game.players.itervalues() if player.get_team() is not spec }
+            player_list = { player.player_num: frags_list[player.player_num] for player in self.game.players.itervalues() if player.get_team() is not spec }            
             #circuit breaker
             if len(player_list)<3:
                 self.game.rcon_say("Cannot Skill balance with less than 3 players try !swapteams")
                 return
 
             self.game.rcon_bigtext("SKILL BALANCING TEAMS...")
+            #complete with FAKE player
+            if len(player_list) %2 != 0:
+                player_list.update({FAKE_PLAYER_NUM: 0})
             #sort 
             player_list=sorted(player_list.items(), key=lambda item: item[1], reverse=True)
             #split

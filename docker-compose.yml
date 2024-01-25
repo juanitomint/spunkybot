@@ -14,7 +14,7 @@ services:
     volumes:
       - ./urban-terror:/urbanterror
   spunky:
-    image: juanitomint/spunkybot:1.14.2
+    image: juanitomint/spunkybot:1.14.3
     volumes:
       - ./urban-terror/q3ut4:/opt/urbanterror/.q3a/q3ut4
       - ./conf/settings-docker.conf:/usr/src/app/conf/settings.conf
